@@ -1,174 +1,60 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <title>ROI 대시보드 결과</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGV ROI 결과</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #080b12;
-      color: white;
-      font-family: 'Segoe UI', sans-serif;
-    }
-    .card {
-      background-color: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .highlight {
-      background-color: #ff6f61;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    .label {
-      color: #79c9c7;
+    .product-card img {
+      aspect-ratio: 3 / 1;
+      object-fit: contain;
+      background-color: white;
     }
   </style>
 </head>
-<body class="p-4 md:p-8">
-  <div class="max-w-6xl mx-auto">
-    <h1 class="text-4xl font-bold mb-4 text-center">📊 AGV/AMR ROI 대시보드</h1>
-    <p class="text-center mb-8 text-gray-300">AGV 수와 기간을 조절하여 손익분기점을 시뮬레이션 해보세요</p>
+<body class="dark:bg-[#080b12] dark:text-white bg-white text-black">
+  <div class="p-4 flex justify-between items-center">
+    <button onclick="toggleDarkMode()" class="bg-gray-200 dark:bg-gray-700 text-black dark:text-white px-3 py-1 rounded">☀️ / 🌙</button>
+    <button onclick="downloadPDF()" class="bg-[#79c9c7] text-[#080b12] px-4 py-2 rounded font-semibold">PDF 저장</button>
+  </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <div class="card p-4 rounded">
-        <label class="block mb-2">AGV 수 (1~10대)</label>
-        <input id="agv-count" type="number" min="1" max="10" value="3" class="w-full px-4 py-2 rounded text-black" onchange="updateCharts()">
+  <div class="grid md:grid-cols-4 gap-4 max-w-7xl mx-auto">
+    <div class="md:col-span-1 space-y-2 overflow-y-auto max-h-[90vh]">
+      <div class="bg-white dark:bg-gray-800 p-2 rounded shadow">
+        <h3 class="font-bold text-lg mb-2">제품 목록</h3>
+        <div class="space-y-2">
+          <div class="product-card flex gap-2 items-center p-2 border rounded">
+            <img src="http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737" alt="M6-300N" class="w-24 h-20">
+            <div>
+              <div class="font-semibold">M6-300N</div>
+              <div class="text-sm">하중: 300kg<br>속도: 1.0m/s<br>시간: 8h</div>
+            </div>
+          </div>
+          <div class="product-card flex gap-2 items-center p-2 border rounded">
+            <img src="http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d" alt="M6-600" class="w-24 h-20">
+            <div>
+              <div class="font-semibold">M6-600</div>
+              <div class="text-sm">하중: 600kg<br>속도: 1.2m/s<br>시간: 10h</div>
+            </div>
+          </div>
+          <!-- 다른 모델들도 동일한 형태로 나열 가능 -->
+        </div>
       </div>
-      <div class="card p-4 rounded">
-        <label class="block mb-2">통화 단위</label>
-        <select id="currency" class="w-full px-4 py-2 rounded text-black" onchange="updateCharts()">
-          <option value="원">KRW (원)</option>
-          <option value="$">USD ($)</option>
-        </select>
-      </div>
     </div>
 
-    <div class="card p-6 rounded mb-6">
-      <h2 class="text-xl font-semibold mb-4">누적 절감액 (24개월)</h2>
-      <canvas id="savingsChart" height="120"></canvas>
-    </div>
-
-    <div class="card p-6 rounded mb-6">
-      <h2 class="text-xl font-semibold mb-4">월별 운영비용 비교</h2>
-      <canvas id="compareChart" height="120"></canvas>
-      <p id="breakeven-label" class="mt-4 text-center text-sm text-gray-400"></p>
-    </div>
-
-    <div class="text-center mt-6">
-      <button onclick="downloadPDF()" class="bg-[#79c9c7] text-[#080b12] px-6 py-3 rounded shadow hover:bg-[#63b2b0] transition">
-        PDF로 저장하기
-      </button>
+    <div class="md:col-span-3 px-4">
+      <h2 class="text-2xl font-bold mb-4 text-center">AGV/AMR 투자 ROI 결과</h2>
+      <canvas id="roiChart" class="bg-white dark:bg-gray-800 rounded shadow mb-8"></canvas>
+      <canvas id="monthlyChart" class="bg-white dark:bg-gray-800 rounded shadow"></canvas>
     </div>
   </div>
 
   <script>
-    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}월`);
-    let savingsChart, compareChart;
-
-    function generateData(agvCount = 3) {
-      const savings = months.map((_, i) => (i + 1) * 250 * agvCount);
-      const withAGV = months.map((_, i) => 1000 - i * 10 * agvCount);
-      const withoutAGV = months.map(() => 1000);
-      return { savings, withAGV, withoutAGV };
-    }
-
-    function getCurrencySymbol() {
-      return document.getElementById('currency').value;
-    }
-
-    function findBreakeven(withAGV, withoutAGV) {
-      for (let i = 0; i < withAGV.length; i++) {
-        if (withAGV[i] <= withoutAGV[i]) return i;
-      }
-      return -1;
-    }
-
-    function createCharts() {
-      const agvCount = parseInt(document.getElementById('agv-count').value);
-      const currency = getCurrencySymbol();
-      const { savings, withAGV, withoutAGV } = generateData(agvCount);
-      const breakevenIndex = findBreakeven(withAGV, withoutAGV);
-
-      if (savingsChart) savingsChart.destroy();
-      if (compareChart) compareChart.destroy();
-
-      savingsChart = new Chart(document.getElementById('savingsChart'), {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: '누적 절감액',
-            data: savings,
-            borderColor: '#79c9c7',
-            backgroundColor: 'transparent',
-            tension: 0.3
-          }]
-        },
-        options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${currency}`
-              }
-            },
-            legend: { labels: { color: 'white' } }
-          },
-          scales: {
-            x: { ticks: { color: 'white' } },
-            y: { ticks: { color: 'white' } }
-          }
-        }
-      });
-
-      compareChart = new Chart(document.getElementById('compareChart'), {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [
-            {
-              label: 'AGV 도입',
-              data: withAGV,
-              borderColor: '#79c9c7',
-              tension: 0.3,
-              fill: false
-            },
-            {
-              label: '기존 방식',
-              data: withoutAGV,
-              borderColor: '#ffd700',
-              borderDash: [5, 5],
-              tension: 0.3,
-              fill: false
-            }
-          ]
-        },
-        options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${currency}`
-              }
-            },
-            legend: { labels: { color: 'white' } }
-          },
-          scales: {
-            x: { ticks: { color: 'white' } },
-            y: { ticks: { color: 'white' } }
-          }
-        }
-      });
-
-      const label = document.getElementById('breakeven-label');
-      label.innerHTML = breakevenIndex >= 0
-        ? `💡 손익분기점은 <span class="highlight">${breakevenIndex + 1}월</span>입니다.`
-        : '❗ 손익분기점이 24개월 내에 도달하지 않습니다.';
-    }
-
-    function updateCharts() {
-      createCharts();
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
     }
 
     function downloadPDF() {
@@ -176,14 +62,95 @@
       const doc = new jsPDF();
       doc.html(document.body, {
         callback: function (pdf) {
-          pdf.save('ROI-dashboard.pdf');
+          pdf.save('ROI-Result.pdf');
         },
         x: 10,
-        y: 10
+        y: 10,
+        html2canvas: { scale: 0.6 }
       });
     }
 
-    window.onload = () => createCharts();
+    const params = new URLSearchParams(window.location.search);
+    const employees = Number(params.get('employees') || 3);
+    const hourlyCost = Number(params.get('hourlyCost') || 15000);
+    const shiftHours = Number(params.get('shiftHours') || 8);
+    const shiftsPerDay = Number(params.get('shiftsPerDay') || 2);
+    const daysPerWeek = Number(params.get('daysPerWeek') || 5);
+    const weeksPerYear = Number(params.get('weeksPerYear') || 50);
+
+    const annualLaborCost = employees * hourlyCost * shiftHours * shiftsPerDay * daysPerWeek * weeksPerYear;
+    const agvInitialCost = 50000000;
+    const agvMonthlyCost = 1100000;
+    const months = 24;
+
+    const baseline = [];
+    const agvLine = [];
+    for (let i = 0; i < months; i++) {
+      baseline.push(Math.round((annualLaborCost / 12) * (i + 1)));
+      agvLine.push(Math.round(agvInitialCost + agvMonthlyCost * i));
+    }
+
+    const crossingIndex = agvLine.findIndex((v, i) => v < baseline[i]);
+    const labels = Array.from({ length: months }, (_, i) => `${i + 1}개월`);
+
+    const ctx = document.getElementById('roiChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: '기존 인건비', data: baseline, borderColor: '#79c9c7', borderWidth: 2, fill: false },
+          { label: 'AGV 누적비용', data: agvLine, borderColor: '#f87171', borderWidth: 2, fill: false },
+          crossingIndex >= 0 ? {
+            label: '손익분기점',
+            data: Array.from({ length: months }, (_, i) => i === crossingIndex ? agvLine[i] : null),
+            pointBackgroundColor: 'yellow',
+            pointRadius: 6,
+            type: 'line',
+            borderWidth: 0,
+            pointStyle: 'rectRot'
+          } : {}
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}원`
+            }
+          }
+        }
+      }
+    });
+
+    const ctx2 = document.getElementById('monthlyChart').getContext('2d');
+    const savingRates = Array.from({ length: months }, (_, i) => {
+      const base = baseline[i];
+      const agv = agvLine[i];
+      return base > agv ? ((base - agv) / base) : 0;
+    });
+
+    new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: '절감률', data: savingRates, backgroundColor: '#79c9c7' }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true, max: 1 }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `절감률: ${(ctx.raw * 100).toFixed(1)}%`
+            }
+          }
+        }
+      }
+    });
   </script>
 </body>
 </html>
