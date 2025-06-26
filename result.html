@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AGV/AMR ROI 시뮬레이션 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -15,7 +14,6 @@
     }
   </style>
 </head>
-
 <body class="bg-[#f7f8fa] text-[#080b12]">
   <div class="flex h-screen">
     <!-- 좌측 메뉴 -->
@@ -47,15 +45,15 @@
         <div><label>연간 생산주간</label><input type="number" id="weeksPerYear" class="w-full border rounded px-3 py-2" value="50"></div>
       </div>
 
-      <!-- 그래프 1: 혼합형 ROI 차트 -->
+      <!-- 그래프 1: ROI 손익분기점 -->
       <div class="bg-white p-4 rounded mb-8">
         <h2 class="text-xl font-bold mb-2">ROI 손익분기점</h2>
         <canvas id="roiChart" width="1600" height="800"></canvas>
       </div>
 
-      <!-- 그래프 2: 월별 절감 추이 -->
-      <div class="bg-white p-4 rounded mb-8">
-        <h2 class="text-xl font-bold mb-2">월별 절감액 추이</h2>
+      <!-- 그래프 2: 월별 투자대비 절감비 -->
+      <div class="bg-white p-4 rounded">
+        <h2 class="text-xl font-bold mb-2">월별 투자 대비 절감 추이</h2>
         <canvas id="savingsChart" width="1600" height="800"></canvas>
       </div>
     </main>
@@ -64,8 +62,6 @@
   <script>
     const models = [
       { name: "M6-300N", category: "저상형", image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", cost: 30000000 },
-      { name: "M6-600", category: "저상형", image: "http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d", cost: 40000000 },
-      { name: "T6-1200/1500", category: "저상형", image: "http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904", cost: 60000000 },
       { name: "Z50-SF", category: "분류형", image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", cost: 35000000 },
       { name: "ZS-H150", category: "운반형", image: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", cost: 42000000 },
       { name: "YAA10", category: "지게형", image: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", cost: 45000000 },
@@ -109,42 +105,28 @@
       const cumulativeSavings = labels.map((_, i) => monthlyLaborCost * (i + 1));
       const investment = labels.map(() => cost);
 
-      const breakevenIndex = cumulativeSavings.findIndex(v => v >= cost);
-      const breakevenMonth = breakevenIndex >= 0 ? breakevenIndex : null;
-
       if (charts.roiChart) charts.roiChart.destroy();
       charts.roiChart = new Chart(document.getElementById("roiChart"), {
         type: 'line',
         data: {
           labels,
           datasets: [
-            { label: '누적 절감액', data: cumulativeSavings, borderColor: '#22c55e', tension: 0.4 },
-            { label: '도입비용', data: investment, borderColor: '#ef4444', tension: 0.4 }
+            { label: '누적 절감액', data: cumulativeSavings, borderColor: '#4caf50', fill: false },
+            { label: '도입비용', data: investment, borderColor: '#f44336', fill: false }
           ]
         },
         options: {
           responsive: false,
-          animation: { duration: 1500, easing: 'easeOutQuart' },
           plugins: {
-            annotation: {
-              annotations: breakevenMonth !== null ? {
-                line1: {
-                  type: 'line',
-                  xMin: breakevenMonth,
-                  xMax: breakevenMonth,
-                  borderColor: 'blue',
-                  borderWidth: 2,
-                  label: {
-                    content: `ROI 도달 (${breakevenMonth + 1}개월)`,
-                    enabled: true,
-                    position: 'top'
-                  }
-                }
-              } : {}
+            zoom: {
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+              pan: { enabled: true, mode: 'xy' }
             }
           },
           scales: {
-            y: { ticks: { stepSize: 5000000, callback: v => (v / 10000) + '만원' } }
+            y: {
+              ticks: { stepSize: 5000000, callback: v => (v / 10000) + '만원' }
+            }
           }
         }
       });
@@ -154,20 +136,30 @@
         type: 'bar',
         data: {
           labels,
-          datasets: [{ label: '월별 절감액', data: Array(24).fill(monthlyLaborCost), backgroundColor: '#60a5fa' }]
+          datasets: [
+            { label: '월별 절감액', data: Array(24).fill(monthlyLaborCost), backgroundColor: '#2196f3' }
+          ]
         },
         options: {
           responsive: false,
-          animation: { duration: 1500, easing: 'easeInOutCubic' },
+          plugins: {
+            zoom: {
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+              pan: { enabled: true, mode: 'xy' }
+            }
+          },
           scales: {
-            y: { ticks: { stepSize: 5000000, callback: v => (v / 10000) + '만원' } }
+            y: {
+              ticks: { stepSize: 5000000, callback: v => (v / 10000) + '만원' }
+            }
           }
         }
       });
     }
 
     document.getElementById("downloadPdf").addEventListener("click", () => {
-      html2pdf().from(document.body).set({ margin: 0.2, filename: 'roi-dashboard.pdf', html2canvas: { scale: 2 } }).save();
+      const element = document.body;
+      html2pdf().from(element).set({ margin: 0.2, filename: 'roi-dashboard.pdf', html2canvas: { scale: 2 } }).save();
     });
 
     categorySelect.addEventListener("change", updateModelList);
