@@ -83,9 +83,39 @@
 
 <script>
 const models = [
-  // 예시, 나머지 모델은 동일 구조로 추가
-  {name:"M6-300N",category:"저상형",cost:30000000,image:"..."},
-  // ...
+  // 저상형 (6종)
+  { name: "M6-300N", category: "저상형", image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737" },
+  { name: "M6-600", category: "저상형", image: " http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d",
+  { name: "M6-800", category: "저상형", image: "http://gtbkorea.com/board/download/21b35da19c4cdbec537d7b752d16e351"},
+  { name: "T6-1200/1500", category: "저상형", image: "http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904"},
+  { name: "YAF10", category: "저상형", image: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50"},
+  { name: "YAH10", category: "저상형", image: "http://gtbkorea.com/board/download/624fbdccc2c937f8e29edc04bf0a7584"},
+
+  // 분류형 (6종)
+  { name: "Z50-SF", category: "분류형", image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8"},
+  { name: "Z50-S", category: "분류형", image: "http://gtbkorea.com/board/download/0ab50609721b1de4baee87e07cb5905d"},
+  { name: "F50A", category: "분류형", image: "http://gtbkorea.com/board/download/b0923cce7cdfaa31395dcd5ea71bd6cc"},
+  { name: "F152/F152-XL", category: "분류형", image: "http://gtbkorea.com/board/download/16e8be0a9203575f8c99231c17a4066f"},
+
+
+  // 운반형 (6종)
+  { name: "ZS-H150", category: "운반형", image: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb"},
+  { name: "ZS-H120", category: "운반형", image: "http://gtbkorea.com/board/download/623c0699c75a3799df83991be50d1fdd"},
+  { name: "ZS-L2000", category: "운반형", image: " http://gtbkorea.com/board/download/1f3f9da6d6129fe410548eef36b370c1"},
+  { name: "ZS 고객요청용", category: "운반형", image: "http://gtbkorea.com/board/download/1fe5784d235d5426ff8d75ad98f081c1"},
+  { name: "YAG10", category: "운반형", image: "http://gtbkorea.com/board/download/8f55e3677844a1d2983db42f19d42567"},
+  { name: "CONVEYOR", category: "운반형", image: "http://gtbkorea.com/board/download/6c60053620b9f87b62afed043953fa8a"},
+
+  // 지게형 (6종)
+  { name: "YAA10", category: "지게형", image: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020"},
+  { name: "YAB10", category: "지게형", image: "http://gtbkorea.com/board/download/c7c166dedf97859f798f5e0f1cf271b2"},
+  { name: "YAB16", category: "지게형", image: "http://gtbkorea.com/board/download/5a240a7b5b1cdaa612d8d26fac031ff4"},
+  { name: "YAP10", category: "지게형", image: "http://gtbkorea.com/board/download/a9a30860335be0d79f13c6cd89a12510"},
+  { name: "YAF30", category: "지게형", image: "http://gtbkorea.com/board/download/aae163cad4b249d7bfe9e7a64a855a97"},
+  { name: "YAP30-10", category: "지게형", image: "http://gtbkorea.com/board/download/5ec58fb27b7a282601214eadeda73d86"},
+  { name: "YAG30", category: "지게형", image: "http://gtbkorea.com/board/download/441491fb716d3a7c0fc3618d051eb2d0"},
+  { name: "YAA35", category: "지게형", image: "http://gtbkorea.com/board/download/c8ce53e70635340519eb46a62b984639"},
+  { name: "YAB35", category: "지게형", image: "http://gtbkorea.com/board/download/53ede872548fcb0bca9e52c560a09ef0"}
 ];
 const specs = {
   "M6-300N": {
