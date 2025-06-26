@@ -60,12 +60,41 @@
   </div>
 
   <script>
-    const models = [
-      { name: "M6-300N", category: "저상형", image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", cost: 30000000 },
-      { name: "Z50-SF", category: "분류형", image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", cost: 35000000 },
-      { name: "ZS-H150", category: "운반형", image: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", cost: 42000000 },
-      { name: "YAA10", category: "지게형", image: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", cost: 45000000 },
-    ];
+const models = [
+  // 저상형 (6종)
+  { name: "M6-300N", category: "저상형", image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", cost: 30000000 },
+  { name: "M6-400N", category: "저상형", image: "http://gtbkorea.com/board/download/img1.jpg", cost: 32000000 },
+  { name: "M6-500N", category: "저상형", image: "http://gtbkorea.com/board/download/img2.jpg", cost: 34000000 },
+  { name: "LIFT-M4", category: "저상형", image: "http://gtbkorea.com/board/download/img3.jpg", cost: 36000000 },
+  { name: "ZL-60", category: "저상형", image: "http://gtbkorea.com/board/download/img4.jpg", cost: 38000000 },
+  { name: "ZL-80", category: "저상형", image: "http://gtbkorea.com/board/download/img5.jpg", cost: 39000000 },
+
+  // 분류형 (6종)
+  { name: "Z50-SF", category: "분류형", image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", cost: 35000000 },
+  { name: "Z50-MF", category: "분류형", image: "http://gtbkorea.com/board/download/img6.jpg", cost: 36000000 },
+  { name: "SRT-30", category: "분류형", image: "http://gtbkorea.com/board/download/img7.jpg", cost: 37000000 },
+  { name: "SRT-40", category: "분류형", image: "http://gtbkorea.com/board/download/img8.jpg", cost: 38000000 },
+  { name: "SpinSorter", category: "분류형", image: "http://gtbkorea.com/board/download/img9.jpg", cost: 39000000 },
+  { name: "FlipSorter", category: "분류형", image: "http://gtbkorea.com/board/download/img10.jpg", cost: 40000000 },
+
+  // 운반형 (7종)
+  { name: "ZS-H150", category: "운반형", image: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", cost: 42000000 },
+  { name: "ZS-H200", category: "운반형", image: "http://gtbkorea.com/board/download/img11.jpg", cost: 44000000 },
+  { name: "X300-T", category: "운반형", image: "http://gtbkorea.com/board/download/img12.jpg", cost: 46000000 },
+  { name: "X350-F", category: "운반형", image: "http://gtbkorea.com/board/download/img13.jpg", cost: 47000000 },
+  { name: "LunaCarry", category: "운반형", image: "http://gtbkorea.com/board/download/img14.jpg", cost: 48000000 },
+  { name: "Bolt-X", category: "운반형", image: "http://gtbkorea.com/board/download/img15.jpg", cost: 49000000 },
+  { name: "SwiftRoll", category: "운반형", image: "http://gtbkorea.com/board/download/img16.jpg", cost: 50000000 },
+
+  // 지게형 (6종)
+  { name: "YAA10", category: "지게형", image: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", cost: 45000000 },
+  { name: "YAA12", category: "지게형", image: "http://gtbkorea.com/board/download/img17.jpg", cost: 47000000 },
+  { name: "Stacker-FX", category: "지게형", image: "http://gtbkorea.com/board/download/img18.jpg", cost: 49000000 },
+  { name: "Fork-X", category: "지게형", image: "http://gtbkorea.com/board/download/img19.jpg", cost: 51000000 },
+  { name: "LiftUp-20", category: "지게형", image: "http://gtbkorea.com/board/download/img20.jpg", cost: 53000000 },
+  { name: "LoadKing", category: "지게형", image: "http://gtbkorea.com/board/download/img21.jpg", cost: 55000000 }
+];
+
 
     const categorySelect = document.getElementById("categorySelect");
     const modelList = document.getElementById("modelList");
