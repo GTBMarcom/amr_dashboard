@@ -12,7 +12,7 @@
       background-color: #080b12;
       color: white;
       font-family: sans-serif;
-      padding: 2rem;
+      padding: 1rem;
     }
     .card {
       background-color: rgba(255, 255, 255, 0.05);
@@ -21,20 +21,28 @@
       max-width: 960px;
       margin: 0 auto;
     }
+    input[type='number'] {
+      color: black;
+    }
   </style>
 </head>
 <body>
   <div class="dashboard-section">
-    <h1 class="text-3xl font-bold mb-8 text-center">\uD83D\uDE80 ROI 결과 대시보드 </h1>
+    <h1 class="text-3xl font-bold mb-6 text-center">ROI 대시보드 결과</h1>
+
+    <div class="text-center mb-8">
+      <label class="block mb-2">AGV 수 (1~10대):</label>
+      <input id="agv-count" type="number" min="1" max="10" value="3" class="rounded px-4 py-2 w-32 text-center" onchange="updateCharts()">
+    </div>
 
     <div id="dashboard-content" class="space-y-10">
-      <div class="card p-6 rounded-xl shadow">
-        <h2 class="text-xl font-semibold mb-4">누적 절감 비용 (24개월)</h2>
+      <div class="card p-4 md:p-6 rounded-xl shadow">
+        <h2 class="text-lg md:text-xl font-semibold mb-4">도입시 누적 절감 비용 (24개월)</h2>
         <canvas id="savingsChart" height="120"></canvas>
       </div>
 
-      <div class="card p-6 rounded-xl shadow">
-        <h2 class="text-xl font-semibold mb-4">월별 비교 (AGV·AMR vs 기존 방식)</h2>
+      <div class="card p-4 md:p-6 rounded-xl shadow">
+        <h2 class="text-lg md:text-xl font-semibold mb-4">월별 비교 (AGV,AMR vs 기존 방식)</h2>
         <canvas id="compareChart" height="120"></canvas>
       </div>
 
@@ -47,62 +55,116 @@
   </div>
 
   <script>
-    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}\uC6D4`);
-    const savings = months.map((_, i) => (i + 1) * 250); // 누적 절감액: 250씩 증가
-    const withAGV = months.map((_, i) => 1000 - i * 10); // AGV로 감소 추세
-    const withoutAGV = months.map(() => 1000); // 기존 일정
+    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}월`);
+    let savingsChart, compareChart;
 
-    new Chart(document.getElementById('savingsChart'), {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [{
-          label: '누적 절감액',
-          data: savings,
-          borderColor: '#79c9c7',
-          backgroundColor: 'transparent',
-          tension: 0.3
-        }]
-      },
-      options: {
-        plugins: { legend: { labels: { color: 'white' } } },
-        scales: {
-          x: { ticks: { color: 'white' } },
-          y: { ticks: { color: 'white' } }
-        }
+    function generateData(agvCount = 3) {
+      const savings = months.map((_, i) => (i + 1) * 250 * agvCount);
+      const withAGV = months.map((_, i) => 1000 - i * 10 * agvCount);
+      const withoutAGV = months.map(() => 1000);
+      return { savings, withAGV, withoutAGV };
+    }
+
+    function findBreakeven(withAGV, withoutAGV) {
+      for (let i = 0; i < withAGV.length; i++) {
+        if (withAGV[i] < withoutAGV[i]) return i;
       }
-    });
+      return -1;
+    }
 
-    new Chart(document.getElementById('compareChart'), {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [
-          {
-            label: 'AGV 도입',
-            data: withAGV,
+    function createCharts() {
+      const agvCount = parseInt(document.getElementById('agv-count').value);
+      const { savings, withAGV, withoutAGV } = generateData(agvCount);
+      const breakevenIndex = findBreakeven(withAGV, withoutAGV);
+
+      const tooltipCallback = (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue} 원`;
+
+      if (savingsChart) savingsChart.destroy();
+      if (compareChart) compareChart.destroy();
+
+      savingsChart = new Chart(document.getElementById('savingsChart'), {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{
+            label: '누적 절감액',
+            data: savings,
             borderColor: '#79c9c7',
-            tension: 0.3,
-            fill: false
+            backgroundColor: 'transparent',
+            tension: 0.3
+          }]
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: { label: tooltipCallback }
+            },
+            legend: { labels: { color: 'white' } }
           },
-          {
-            label: '기존 방식',
-            data: withoutAGV,
-            borderColor: '#ffd700',
-            borderDash: [5, 5],
-            tension: 0.3,
-            fill: false
+          scales: {
+            x: { ticks: { color: 'white' } },
+            y: { ticks: { color: 'white' } }
           }
-        ]
-      },
-      options: {
-        plugins: { legend: { labels: { color: 'white' } } },
-        scales: {
-          x: { ticks: { color: 'white' } },
-          y: { ticks: { color: 'white' } }
         }
-      }
-    });
+      });
+
+      const breakevenPoint = breakevenIndex >= 0 ? {
+        id: 'breakeven-line',
+        beforeDraw(chart) {
+          const ctx = chart.ctx;
+          const x = chart.scales.x.getPixelForValue(breakevenIndex);
+          ctx.save();
+          ctx.strokeStyle = '#ff6f61';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, chart.chartArea.top);
+          ctx.lineTo(x, chart.chartArea.bottom);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } : {};
+
+      compareChart = new Chart(document.getElementById('compareChart'), {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [
+            {
+              label: 'AGV 도입',
+              data: withAGV,
+              borderColor: '#79c9c7',
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: '기존 방식',
+              data: withoutAGV,
+              borderColor: '#ffd700',
+              borderDash: [5, 5],
+              tension: 0.3,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: { label: tooltipCallback }
+            },
+            legend: { labels: { color: 'white' } }
+          },
+          scales: {
+            x: { ticks: { color: 'white' } },
+            y: { ticks: { color: 'white' } }
+          }
+        },
+        plugins: [breakevenPoint]
+      });
+    }
+
+    function updateCharts() {
+      createCharts();
+    }
 
     function downloadPDF() {
       const { jsPDF } = window.jspdf;
@@ -115,6 +177,9 @@
         y: 10
       });
     }
+
+    // 초기 로드 시 차트 생성
+    window.onload = () => createCharts();
   </script>
 </body>
 </html>
