@@ -1,188 +1,206 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AGV/AMR ROI 시뮬레이션</title>
+  <title>AGV ROI Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Pretendard', sans-serif;
-      color: #080b12;
-      background-color: #f7f8fa;
-      margin: 0;
-    }
-    .sidebar {
-      width: 300px;
-      overflow-y: auto;
-      height: 100vh;
-      background-color: #fff;
-      border-right: 1px solid #ddd;
-    }
-    .content {
-      flex: 1;
-      padding: 2rem;
-      overflow-y: auto;
-    }
-    .model-img {
-      width: 100%;
-      max-width: 150px;
-      aspect-ratio: 3 / 1;
+    .model-card img {
       object-fit: contain;
+      width: 100%;
+      height: auto;
     }
-    .category-tab.active {
-      background-color: #080b12;
-      color: #fff;
+    .scrollbar::-webkit-scrollbar {
+      width: 8px;
     }
-    .model-card {
-      background: rgba(8,11,18,0.05);
-      padding: 1rem;
-      border-radius: 1rem;
-      margin-bottom: 1rem;
+    .scrollbar::-webkit-scrollbar-thumb {
+      background-color: #cbd5e0;
+      border-radius: 4px;
     }
   </style>
 </head>
-
-<body>
-  <div class="flex">
-    <!-- Sidebar -->
-    <aside class="sidebar p-4">
-      <h2 class="text-xl font-bold mb-4">카테고리</h2>
-      <div class="flex flex-wrap gap-2 mb-4">
-        <button class="category-tab active px-3 py-1 rounded border" data-category="저상형">저상형</button>
-        <button class="category-tab px-3 py-1 rounded border" data-category="분류형">분류형</button>
-        <button class="category-tab px-3 py-1 rounded border" data-category="운반형">운반형</button>
-        <button class="category-tab px-3 py-1 rounded border" data-category="지게형">지게형</button>
+<body class="bg-gray-100 text-gray-900">
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-72 bg-white border-r border-gray-300 p-4 overflow-y-auto scrollbar">
+    <h2 class="text-lg font-bold mb-4">DASHBOARD HOME</h2>
+    <div>
+      <div class="mb-4">
+        <label class="block font-semibold mb-2">카테고리</label>
+        <select id="category-select" class="w-full border border-gray-300 rounded px-3 py-2">
+          <option value="저상형">저상형</option>
+          <option value="분류형">분류형</option>
+          <option value="운반형">운반형</option>
+          <option value="지게형">지게형</option>
+        </select>
       </div>
-      <div id="model-list"></div>
-    </aside>
+      <div id="model-list" class="space-y-4"></div>
+    </div>
+  </aside>
 
-    <!-- Main Content -->
-    <main class="content">
-      <h1 class="text-2xl font-bold mb-4">ROI 분석 대시보드</h1>
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-auto">
+    <h1 class="text-2xl font-bold mb-6">ROI 분석 대시보드</h1>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div>
-        <canvas id="roiChart" height="300"></canvas>
+        <h2 class="text-lg font-semibold mb-2">손익분기점 (24개월)</h2>
+        <canvas id="roiChart" width="1600" height="800"></canvas>
       </div>
-      <div class="mt-12">
-        <canvas id="monthlyChart" height="300"></canvas>
+      <div>
+        <h2 class="text-lg font-semibold mb-2">월간 투자 대비 인건비 손익비</h2>
+        <canvas id="savingChart" width="1600" height="800"></canvas>
       </div>
-    </main>
-  </div>
+    </div>
+  </main>
+</div>
 
-  <script>
-    const models = [
-      { name: 'M6-300N', image: 'http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737', category: '저상형', load: 300, speed: 1.2, time: 6 },
-      { name: 'M6-600', image: 'http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d', category: '저상형', load: 600, speed: 1.5, time: 8 },
-      { name: 'T6-1200/1500', image: 'http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904', category: '저상형', load: 1500, speed: 1.2, time: 6 },
-      { name: 'YAF10', image: 'http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50', category: '분류형', load: 200, speed: 1.1, time: 7 },
-      { name: 'Z50-SF', image: 'http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8', category: '운반형', load: 500, speed: 1.5, time: 10 },
-      { name: 'ZS-H150', image: 'http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb', category: '지게형', load: 1000, speed: 0.8, time: 8 }
-    ];
+<script>
+const models = {
+  "저상형": [
+    { name: "M6-300N", image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", cost: 24000000, monthlySavings: 1600000 },
+    { name: "M6-600", image: "http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d", cost: 26000000, monthlySavings: 1700000 },
+    { name: "M6-800", image: "http://gtbkorea.com/board/download/21b35da19c4cdbec537d7b752d16e351", cost: 28000000, monthlySavings: 1850000 },
+    { name: "T6-1200/1500", image: "http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904", cost: 33000000, monthlySavings: 1950000 },
+    { name: "YAF10", image: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50", cost: 37000000, monthlySavings: 2100000 },
+    { name: "YAH10", image: "http://gtbkorea.com/board/download/624fbdccc2c937f8e29edc04bf0a7584", cost: 39500000, monthlySavings: 2250000 },
+  ],
+  "분류형": [
+    { name: "Z50-SF", image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", cost: 41000000, monthlySavings: 2450000 },
+    { name: "Z50-S", image: "http://gtbkorea.com/board/download/0ab50609721b1de4baee87e07cb5905d", cost: 43000000, monthlySavings: 2550000 },
+    { name: "F50A", image: "http://gtbkorea.com/board/download/b0923cce7cdfaa31395dcd5ea71bd6cc", cost: 44000000, monthlySavings: 2600000 },
+    { name: "F152/F152-XL", image: "http://gtbkorea.com/board/download/16e8be0a9203575f8c99231c17a4066f", cost: 46000000, monthlySavings: 2750000 },
+  ],
+  "운반형": [
+    { name: "ZS-H150", image: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", cost: 47000000, monthlySavings: 2800000 },
+    { name: "ZS-H120", image: "http://gtbkorea.com/board/download/623c0699c75a3799df83991be50d1fdd", cost: 48000000, monthlySavings: 2900000 },
+    { name: "ZS-L2000", image: "http://gtbkorea.com/board/download/1f3f9da6d6129fe410548eef36b370c1", cost: 49500000, monthlySavings: 3000000 },
+    { name: "ZS 고객요청용", image: "http://gtbkorea.com/board/download/1fe5784d235d5426ff8d75ad98f081c1", cost: 51000000, monthlySavings: 3100000 },
+    { name: "YAG10", image: "http://gtbkorea.com/board/download/8f55e3677844a1d2983db42f19d42567", cost: 52000000, monthlySavings: 3200000 },
+    { name: "CONVEYOR", image: "http://gtbkorea.com/board/download/6c60053620b9f87b62afed043953fa8a", cost: 53000000, monthlySavings: 3300000 },
+  ],
+  "지게형": [
+    { name: "YAA10", image: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", cost: 54000000, monthlySavings: 3400000 },
+    { name: "YAB10", image: "http://gtbkorea.com/board/download/c7c166dedf97859f798f5e0f1cf271b2", cost: 55000000, monthlySavings: 3500000 },
+    { name: "YAB16", image: "http://gtbkorea.com/board/download/5a240a7b5b1cdaa612d8d26fac031ff4", cost: 56000000, monthlySavings: 3600000 },
+    { name: "YAP10", image: "http://gtbkorea.com/board/download/a9a30860335be0d79f13c6cd89a12510", cost: 57000000, monthlySavings: 3700000 },
+    { name: "YAF30", image: "http://gtbkorea.com/board/download/aae163cad4b249d7bfe9e7a64a855a97", cost: 58000000, monthlySavings: 3800000 },
+    { name: "YAP30-10", image: "http://gtbkorea.com/board/download/5ec58fb27b7a282601214eadeda73d86", cost: 59000000, monthlySavings: 3900000 },
+    { name: "YAG30", image: "http://gtbkorea.com/board/download/441491fb716d3a7c0fc3618d051eb2d0", cost: 60000000, monthlySavings: 4000000 },
+    { name: "YAA35", image: "http://gtbkorea.com/board/download/c8ce53e70635340519eb46a62b984639", cost: 61000000, monthlySavings: 4100000 },
+    { name: "YAB35", image: "http://gtbkorea.com/board/download/53ede872548fcb0bca9e52c560a09ef0", cost: 62000000, monthlySavings: 4200000 },
+  ]
+};
 
-    const modelList = document.getElementById('model-list');
-    const tabs = document.querySelectorAll('.category-tab');
+function updateModelList(category) {
+  const container = document.getElementById('model-list');
+  container.innerHTML = '';
+  models[category].forEach(model => {
+    const el = document.createElement('div');
+    el.className = 'border border-gray-300 rounded p-3 model-card bg-white';
+    el.innerHTML = `
+      <div class="flex items-center gap-4">
+        <img src="${model.image}" alt="${model.name}" class="w-20 h-16" />
+        <div>
+          <div class="text-lg font-bold">${model.name}</div>
+          <div class="text-sm">도입비용: ${model.cost.toLocaleString()}원</div>
+          <div class="text-sm">월 절감액: ${model.monthlySavings.toLocaleString()}원</div>
+        </div>
+      </div>`;
+    el.onclick = () => renderCharts(model);
+    container.appendChild(el);
+  });
+}
 
-    function renderModels(category) {
-      modelList.innerHTML = '';
-      const filtered = models.filter(m => m.category === category);
-      filtered.forEach(m => {
-        modelList.innerHTML += `
-          <div class="model-card">
-            <img src="${m.image}" alt="${m.name}" class="model-img mb-2" />
-            <div class="text-lg font-semibold">${m.name}</div>
-            <div>하중: ${m.load}kg</div>
-            <div>속도: ${m.speed}m/s</div>
-            <div>운행시간: ${m.time}h</div>
-          </div>
-        `;
-      });
+document.getElementById('category-select').addEventListener('change', e => {
+  updateModelList(e.target.value);
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  updateModelList('저상형');
+});
+
+let roiChart;
+let savingChart;
+
+function renderCharts(model) {
+  const months = Array.from({ length: 24 }, (_, i) => `${i + 1}개월`);
+  const cumulativeSavings = months.map((_, i) => model.monthlySavings * (i + 1));
+  const roiData = cumulativeSavings.map(s => s - model.cost);
+
+  const breakpointIndex = roiData.findIndex(v => v >= 0);
+
+  if (roiChart) roiChart.destroy();
+  roiChart = new Chart(document.getElementById('roiChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: '누적 수익',
+        data: roiData,
+        fill: true,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.1)',
+        pointBackgroundColor: '#2563eb'
+      }]
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        annotation: breakpointIndex >= 0 ? {
+          annotations: {
+            line: {
+              type: 'line',
+              xMin: breakpointIndex,
+              xMax: breakpointIndex,
+              borderColor: 'red',
+              borderWidth: 2,
+              label: {
+                content: '손익분기점',
+                enabled: true,
+                position: 'top'
+              }
+            }
+          }
+        } : {}
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: v => `${(v / 10000).toFixed(0)}만원`,
+            stepSize: 5000000
+          }
+        }
+      }
     }
+  });
 
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        renderModels(tab.dataset.category);
-      });
-    });
-
-    renderModels('저상형');
-
-    // ROI 차트 샘플 데이터
-    const roiCtx = document.getElementById('roiChart').getContext('2d');
-    const roiChart = new Chart(roiCtx, {
-      type: 'line',
-      data: {
-        labels: Array.from({ length: 24 }, (_, i) => `${i + 1}개월`),
-        datasets: [{
-          label: 'ROI 추이',
-          data: Array.from({ length: 24 }, (_, i) => (i + 1) * 500000 - 8000000),
-          borderColor: '#254597',
-          backgroundColor: 'rgba(37,69,151,0.1)',
-          pointBackgroundColor: '#254597',
-          tension: 0.3,
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            ticks: {
-              callback: value => `${(value / 10000).toLocaleString()}만원`
-            }
-          }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `ROI: ${(ctx.parsed.y / 10000).toFixed(0)}만원`
-            }
+  if (savingChart) savingChart.destroy();
+  savingChart = new Chart(document.getElementById('savingChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [{
+        label: '월 절감액',
+        data: months.map(() => model.monthlySavings),
+        backgroundColor: '#059669'
+      }]
+    },
+    options: {
+      responsive: false,
+      scales: {
+        y: {
+          ticks: {
+            callback: v => `${(v / 10000).toFixed(0)}만원`,
+            stepSize: 5000000
           }
         }
       }
-    });
-
-    // 월간 투자 vs 인건비 손익 그래프
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-    new Chart(monthlyCtx, {
-      type: 'bar',
-      data: {
-        labels: Array.from({ length: 24 }, (_, i) => `${i + 1}월`),
-        datasets: [
-          {
-            label: '인건비 절감',
-            data: Array.from({ length: 24 }, (_, i) => 2000000 + Math.random() * 500000),
-            backgroundColor: '#79c9c7'
-          },
-          {
-            label: '투자비 회수',
-            data: Array.from({ length: 24 }, (_, i) => i * 300000),
-            backgroundColor: '#254597'
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            ticks: {
-              stepSize: 500000,
-              callback: value => `${(value / 10000).toFixed(0)}만원`
-            }
-          }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y / 10000).toFixed(0)}만원`
-            }
-          }
-        }
-      }
-    });
-  </script>
+    }
+  });
+}
+</script>
 </body>
-
 </html>
