@@ -17,34 +17,40 @@
     .card {
       background-color: rgba(255, 255, 255, 0.05);
     }
+    .dashboard-section {
+      max-width: 960px;
+      margin: 0 auto;
+    }
   </style>
 </head>
 <body>
-  <h1 class="text-3xl font-bold mb-8 text-center">🚀 ROI 대시보드 결과</h1>
+  <div class="dashboard-section">
+    <h1 class="text-3xl font-bold mb-8 text-center">\uD83D\uDE80 ROI 결과 대시보드 </h1>
 
-  <div id="dashboard-content" class="space-y-8">
-    <div class="card p-6 rounded-xl shadow">
-      <h2 class="text-xl font-semibold mb-4">누적 절감 비용</h2>
-      <canvas id="savingsChart" height="150"></canvas>
-    </div>
+    <div id="dashboard-content" class="space-y-10">
+      <div class="card p-6 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4">누적 절감 비용 (24개월)</h2>
+        <canvas id="savingsChart" height="120"></canvas>
+      </div>
 
-    <div class="card p-6 rounded-xl shadow">
-      <h2 class="text-xl font-semibold mb-4">월별 비교</h2>
-      <canvas id="compareChart" height="150"></canvas>
-    </div>
+      <div class="card p-6 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4">월별 비교 (AGV·AMR vs 기존 방식)</h2>
+        <canvas id="compareChart" height="120"></canvas>
+      </div>
 
-    <div class="text-center">
-      <button onclick="downloadPDF()" class="mt-6 bg-white text-[#080b12] px-6 py-3 rounded shadow hover:bg-gray-100 transition">
-        PDF로 저장
-      </button>
+      <div class="text-center">
+        <button onclick="downloadPDF()" class="mt-6 bg-[#79c9c7] text-[#080b12] px-6 py-3 rounded shadow hover:bg-[#63b2b0] transition">
+          PDF로 저장
+        </button>
+      </div>
     </div>
   </div>
 
   <script>
-    const months = ['1월', '2월', '3월', '4월', '5월', '6월'];
-    const savings = [0, 500, 1500, 3000, 4500, 6000];
-    const withAGV = [1000, 950, 900, 850, 800, 750];
-    const withoutAGV = [1000, 1000, 1000, 1000, 1000, 1000];
+    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}\uC6D4`);
+    const savings = months.map((_, i) => (i + 1) * 250); // 누적 절감액: 250씩 증가
+    const withAGV = months.map((_, i) => 1000 - i * 10); // AGV로 감소 추세
+    const withoutAGV = months.map(() => 1000); // 기존 일정
 
     new Chart(document.getElementById('savingsChart'), {
       type: 'line',
@@ -68,12 +74,25 @@
     });
 
     new Chart(document.getElementById('compareChart'), {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: months,
         datasets: [
-          { label: 'AGV 도입', data: withAGV, backgroundColor: '#79c9c7' },
-          { label: '기존 방식', data: withoutAGV, backgroundColor: '#ffd700' }
+          {
+            label: 'AGV 도입',
+            data: withAGV,
+            borderColor: '#79c9c7',
+            tension: 0.3,
+            fill: false
+          },
+          {
+            label: '기존 방식',
+            data: withoutAGV,
+            borderColor: '#ffd700',
+            borderDash: [5, 5],
+            tension: 0.3,
+            fill: false
+          }
         ]
       },
       options: {
