@@ -1,155 +1,159 @@
 <!DOCTYPE html>
-<html lang="ko" class="dark">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AGV ROI 결과</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>ROI 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
-    .product-card img {
-      aspect-ratio: 3 / 1;
-      object-fit: contain;
-      background-color: white;
+    body.dark {
+      background-color: #080b12;
+      color: #ffffff;
+    }
+    .dark .bg-white {
+      background-color: #1f2937;
+    }
+    .dark .text-[#080b12] {
+      color: #ffffff;
     }
   </style>
 </head>
-<body class="dark:bg-[#080b12] dark:text-white bg-white text-black">
-  <div class="p-4 flex justify-between items-center">
-    <button onclick="toggleDarkMode()" class="bg-gray-200 dark:bg-gray-700 text-black dark:text-white px-3 py-1 rounded">☀️ / 🌙</button>
-    <button onclick="downloadPDF()" class="bg-[#79c9c7] text-[#080b12] px-4 py-2 rounded font-semibold">PDF 저장</button>
-  </div>
+<body class="min-h-screen bg-gray-50 text-[#080b12] relative">
 
-  <div class="grid md:grid-cols-4 gap-4 max-w-7xl mx-auto">
-    <div class="md:col-span-1 space-y-2 overflow-y-auto max-h-[90vh]">
-      <div class="bg-white dark:bg-gray-800 p-2 rounded shadow">
-        <h3 class="font-bold text-lg mb-2">제품 목록</h3>
-        <div class="space-y-2">
-          <div class="product-card flex gap-2 items-center p-2 border rounded">
-            <img src="http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737" alt="M6-300N" class="w-24 h-20">
-            <div>
-              <div class="font-semibold">M6-300N</div>
-              <div class="text-sm">하중: 300kg<br>속도: 1.0m/s<br>시간: 8h</div>
-            </div>
-          </div>
-          <div class="product-card flex gap-2 items-center p-2 border rounded">
-            <img src="http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d" alt="M6-600" class="w-24 h-20">
-            <div>
-              <div class="font-semibold">M6-600</div>
-              <div class="text-sm">하중: 600kg<br>속도: 1.2m/s<br>시간: 10h</div>
-            </div>
-          </div>
-          <!-- 다른 모델들도 동일한 형태로 나열 가능 -->
-        </div>
-      </div>
+  <!-- 다크모드 토글 -->
+  <button id="darkModeToggle" class="fixed top-4 right-4 bg-white border border-[#080b12] text-[#080b12] px-3 py-1 rounded-md text-sm hover:bg-[#080b12] hover:text-white transition">🌙 다크모드</button>
+
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-center">AGV/AMR ROI 결과 대시보드</h1>
+
+    <!-- ROI 차트 -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">손익분기점 분석 (24개월)</h2>
+      <canvas id="roiChart" height="200"></canvas>
     </div>
 
-    <div class="md:col-span-3 px-4">
-      <h2 class="text-2xl font-bold mb-4 text-center">AGV/AMR 투자 ROI 결과</h2>
-      <canvas id="roiChart" class="bg-white dark:bg-gray-800 rounded shadow mb-8"></canvas>
-      <canvas id="monthlyChart" class="bg-white dark:bg-gray-800 rounded shadow"></canvas>
+    <!-- 절감률 -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">월별 절감률 (24개월)</h2>
+      <canvas id="savingChart" height="200"></canvas>
+    </div>
+
+    <!-- PDF 저장 버튼 -->
+    <div class="text-center mt-6">
+      <button id="savePdfBtn" class="bg-[#080b12] text-white px-6 py-3 rounded-md hover:bg-white hover:text-[#080b12] border border-[#080b12] transition">PDF 저장하기</button>
     </div>
   </div>
 
   <script>
-    function toggleDarkMode() {
-      document.documentElement.classList.toggle('dark');
+    // 다크모드 토글
+    document.getElementById('darkModeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+    });
+
+    // 샘플 계산값 (예시)
+    const monthlyLaborCost = 1800000; // 기존 인건비 월별 (단위: 원)
+    const agvCost = 25000000; // AGV 도입 비용 (1대)
+    const monthlySavings = 800000; // 월 절감액
+
+    // 24개월 누적 계산
+    const months = Array.from({length: 24}, (_, i) => `${i+1}개월`);
+    let cumulativeHuman = [], cumulativeAgv = [], savingRate = [], breakevenMonth = null;
+
+    for (let i = 0; i < 24; i++) {
+      cumulativeHuman.push(monthlyLaborCost * (i+1));
+      cumulativeAgv.push(agvCost);
+      savingRate.push(Math.min(100, ((monthlyLaborCost * (i+1) - agvCost) / agvCost) * 100));
+      if (!breakevenMonth && cumulativeHuman[i] >= agvCost) breakevenMonth = i;
     }
 
-    function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.html(document.body, {
-        callback: function (pdf) {
-          pdf.save('ROI-Result.pdf');
-        },
-        x: 10,
-        y: 10,
-        html2canvas: { scale: 0.6 }
-      });
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const employees = Number(params.get('employees') || 3);
-    const hourlyCost = Number(params.get('hourlyCost') || 15000);
-    const shiftHours = Number(params.get('shiftHours') || 8);
-    const shiftsPerDay = Number(params.get('shiftsPerDay') || 2);
-    const daysPerWeek = Number(params.get('daysPerWeek') || 5);
-    const weeksPerYear = Number(params.get('weeksPerYear') || 50);
-
-    const annualLaborCost = employees * hourlyCost * shiftHours * shiftsPerDay * daysPerWeek * weeksPerYear;
-    const agvInitialCost = 50000000;
-    const agvMonthlyCost = 1100000;
-    const months = 24;
-
-    const baseline = [];
-    const agvLine = [];
-    for (let i = 0; i < months; i++) {
-      baseline.push(Math.round((annualLaborCost / 12) * (i + 1)));
-      agvLine.push(Math.round(agvInitialCost + agvMonthlyCost * i));
-    }
-
-    const crossingIndex = agvLine.findIndex((v, i) => v < baseline[i]);
-    const labels = Array.from({ length: months }, (_, i) => `${i + 1}개월`);
-
-    const ctx = document.getElementById('roiChart').getContext('2d');
-    new Chart(ctx, {
+    const roiCtx = document.getElementById('roiChart');
+    new Chart(roiCtx, {
       type: 'line',
       data: {
-        labels,
+        labels: months,
         datasets: [
-          { label: '기존 인건비', data: baseline, borderColor: '#79c9c7', borderWidth: 2, fill: false },
-          { label: 'AGV 누적비용', data: agvLine, borderColor: '#f87171', borderWidth: 2, fill: false },
-          crossingIndex >= 0 ? {
-            label: '손익분기점',
-            data: Array.from({ length: months }, (_, i) => i === crossingIndex ? agvLine[i] : null),
-            pointBackgroundColor: 'yellow',
-            pointRadius: 6,
-            type: 'line',
-            borderWidth: 0,
-            pointStyle: 'rectRot'
-          } : {}
+          {
+            label: '누적 인건비',
+            data: cumulativeHuman,
+            borderColor: '#2563eb',
+            backgroundColor: 'transparent'
+          },
+          {
+            label: 'AGV 도입 비용',
+            data: cumulativeAgv,
+            borderColor: '#f43f5e',
+            borderDash: [5, 5],
+            backgroundColor: 'transparent'
+          }
         ]
       },
       options: {
-        responsive: true,
         plugins: {
+          annotation: {
+            annotations: breakevenMonth !== null ? {
+              line1: {
+                type: 'line',
+                xMin: breakevenMonth,
+                xMax: breakevenMonth,
+                borderColor: 'green',
+                borderWidth: 2,
+                label: {
+                  content: '손익분기점',
+                  enabled: true,
+                  position: 'start'
+                }
+              }
+            } : {}
+          },
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}원`
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()}원`
             }
           }
-        }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       }
     });
 
-    const ctx2 = document.getElementById('monthlyChart').getContext('2d');
-    const savingRates = Array.from({ length: months }, (_, i) => {
-      const base = baseline[i];
-      const agv = agvLine[i];
-      return base > agv ? ((base - agv) / base) : 0;
-    });
-
-    new Chart(ctx2, {
+    new Chart(document.getElementById('savingChart'), {
       type: 'bar',
       data: {
-        labels,
-        datasets: [{ label: '절감률', data: savingRates, backgroundColor: '#79c9c7' }]
+        labels: months,
+        datasets: [{
+          label: '누적 절감률(%)',
+          data: savingRate,
+          backgroundColor: '#16a34a'
+        }]
       },
       options: {
         responsive: true,
-        scales: {
-          y: { beginAtZero: true, max: 1 }
-        },
+        maintainAspectRatio: false,
         plugins: {
           tooltip: {
             callbacks: {
-              label: ctx => `절감률: ${(ctx.raw * 100).toFixed(1)}%`
+              label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`
             }
           }
         }
       }
+    });
+
+    // PDF 저장 기능
+    document.getElementById('savePdfBtn').addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const chartArea = document.body; // 전체 영역 PDF 저장
+      const canvas = await html2canvas(chartArea);
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('roi_dashboard.pdf');
     });
   </script>
 </body>
