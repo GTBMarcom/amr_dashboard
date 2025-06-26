@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>ROI 결과 대시보드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #080b12;
+      color: white;
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+    .card {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <h1 class="text-3xl font-bold mb-8 text-center">🚀 ROI 대시보드 결과</h1>
+
+  <div id="dashboard-content" class="space-y-8">
+    <div class="card p-6 rounded-xl shadow">
+      <h2 class="text-xl font-semibold mb-4">누적 절감 비용</h2>
+      <canvas id="savingsChart" height="150"></canvas>
+    </div>
+
+    <div class="card p-6 rounded-xl shadow">
+      <h2 class="text-xl font-semibold mb-4">월별 비교</h2>
+      <canvas id="compareChart" height="150"></canvas>
+    </div>
+
+    <div class="text-center">
+      <button onclick="downloadPDF()" class="mt-6 bg-white text-[#080b12] px-6 py-3 rounded shadow hover:bg-gray-100 transition">
+        PDF로 저장
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const months = ['1월', '2월', '3월', '4월', '5월', '6월'];
+    const savings = [0, 500, 1500, 3000, 4500, 6000];
+    const withAGV = [1000, 950, 900, 850, 800, 750];
+    const withoutAGV = [1000, 1000, 1000, 1000, 1000, 1000];
+
+    new Chart(document.getElementById('savingsChart'), {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{
+          label: '누적 절감액',
+          data: savings,
+          borderColor: '#79c9c7',
+          backgroundColor: 'transparent',
+          tension: 0.3
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: 'white' } } },
+        scales: {
+          x: { ticks: { color: 'white' } },
+          y: { ticks: { color: 'white' } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('compareChart'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label: 'AGV 도입', data: withAGV, backgroundColor: '#79c9c7' },
+          { label: '기존 방식', data: withoutAGV, backgroundColor: '#ffd700' }
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: 'white' } } },
+        scales: {
+          x: { ticks: { color: 'white' } },
+          y: { ticks: { color: 'white' } }
+        }
+      }
+    });
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.html(document.body, {
+        callback: function (pdf) {
+          pdf.save('ROI-dashboard.pdf');
+        },
+        x: 10,
+        y: 10
+      });
+    }
+  </script>
+</body>
+</html>
