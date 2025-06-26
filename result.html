@@ -1,220 +1,188 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AGV ROI 시뮬레이션 대시보드</title>
+  <title>AGV/AMR ROI 시뮬레이션</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body.dark {
-      background-color: #080b12;
-      color: #ffffff;
+    body {
+      font-family: 'Pretendard', sans-serif;
+      color: #080b12;
+      background-color: #f7f8fa;
+      margin: 0;
     }
-    .model-image {
-      height: 96px;
+    .sidebar {
+      width: 300px;
+      overflow-y: auto;
+      height: 100vh;
+      background-color: #fff;
+      border-right: 1px solid #ddd;
+    }
+    .content {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+    .model-img {
+      width: 100%;
+      max-width: 150px;
+      aspect-ratio: 3 / 1;
       object-fit: contain;
+    }
+    .category-tab.active {
+      background-color: #080b12;
+      color: #fff;
+    }
+    .model-card {
+      background: rgba(8,11,18,0.05);
+      padding: 1rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
-<body class="transition-colors">
-  <div class="flex min-h-screen">
+
+<body>
+  <div class="flex">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r dark:bg-[#121212] dark:border-gray-700 p-4 overflow-y-auto">
-      <h2 class="text-xl font-bold mb-4">모델 선택</h2>
-      <select id="modelSelector" class="w-full p-2 border rounded mb-4 text-[#080b12]">
-        <option value="M6-300N">M6-300N</option>
-        <option value="Z50-SF">Z50-SF</option>
-        <option value="YAF10">YAF10</option>
-        <!-- 필요시 더 추가 -->
-      </select>
-      <div id="modelList" class="space-y-4">
-        <!-- 모델 카드 동적 삽입 -->
+    <aside class="sidebar p-4">
+      <h2 class="text-xl font-bold mb-4">카테고리</h2>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button class="category-tab active px-3 py-1 rounded border" data-category="저상형">저상형</button>
+        <button class="category-tab px-3 py-1 rounded border" data-category="분류형">분류형</button>
+        <button class="category-tab px-3 py-1 rounded border" data-category="운반형">운반형</button>
+        <button class="category-tab px-3 py-1 rounded border" data-category="지게형">지게형</button>
       </div>
+      <div id="model-list"></div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 p-6 bg-[#f7f8fa] dark:bg-[#0c0f16]">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">ROI 시뮬레이션</h1>
-        <button id="toggleTheme" class="px-4 py-2 border rounded">🌗 테마 전환</button>
+    <main class="content">
+      <h1 class="text-2xl font-bold mb-4">ROI 분석 대시보드</h1>
+      <div>
+        <canvas id="roiChart" height="300"></canvas>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white dark:bg-[#1c1f26] p-6 rounded shadow">
-          <h2 class="text-lg font-semibold mb-4">손익분기점 분석 (24개월)</h2>
-          <canvas id="breakevenChart" height="250"></canvas>
-        </div>
-
-        <div class="bg-white dark:bg-[#1c1f26] p-6 rounded shadow">
-          <h2 class="text-lg font-semibold mb-4">월별 투자 대비 절감 효과</h2>
-          <canvas id="monthlyChart" height="250"></canvas>
-        </div>
-      </div>
-
-      <div class="mt-6 flex justify-end">
-        <button id="downloadPDF" class="px-6 py-2 bg-[#080b12] text-white rounded shadow hover:bg-[#1a1f2c]">PDF 저장하기</button>
+      <div class="mt-12">
+        <canvas id="monthlyChart" height="300"></canvas>
       </div>
     </main>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const modelData = {
-      "M6-300N": {
-        image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737",
-        cost: 15000000,
-        monthlySavings: 900000,
-      },
-      "Z50-SF": {
-        image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8",
-        cost: 18000000,
-        monthlySavings: 1200000,
-      },
-      "YAF10": {
-        image: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50",
-        cost: 16000000,
-        monthlySavings: 1000000,
-      },
-    };
+    const models = [
+      { name: 'M6-300N', image: 'http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737', category: '저상형', load: 300, speed: 1.2, time: 6 },
+      { name: 'M6-600', image: 'http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d', category: '저상형', load: 600, speed: 1.5, time: 8 },
+      { name: 'T6-1200/1500', image: 'http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904', category: '저상형', load: 1500, speed: 1.2, time: 6 },
+      { name: 'YAF10', image: 'http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50', category: '분류형', load: 200, speed: 1.1, time: 7 },
+      { name: 'Z50-SF', image: 'http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8', category: '운반형', load: 500, speed: 1.5, time: 10 },
+      { name: 'ZS-H150', image: 'http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb', category: '지게형', load: 1000, speed: 0.8, time: 8 }
+    ];
 
-    const modelSelector = document.getElementById("modelSelector");
-    const modelList = document.getElementById("modelList");
-    const ctx1 = document.getElementById("breakevenChart").getContext("2d");
-    const ctx2 = document.getElementById("monthlyChart").getContext("2d");
+    const modelList = document.getElementById('model-list');
+    const tabs = document.querySelectorAll('.category-tab');
 
-    let breakevenChart, monthlyChart;
-
-    function renderModelCard(model) {
-      const data = modelData[model];
-      modelList.innerHTML = `
-        <div class="flex gap-4 items-center bg-gray-100 dark:bg-[#2a2f3a] p-4 rounded">
-          <img src="${data.image}" class="model-image w-32" alt="${model}" />
-          <div>
-            <h3 class="text-xl font-bold">${model}</h3>
-            <p>도입 비용: ${data.cost.toLocaleString()}원</p>
-            <p>월 절감액: ${data.monthlySavings.toLocaleString()}원</p>
+    function renderModels(category) {
+      modelList.innerHTML = '';
+      const filtered = models.filter(m => m.category === category);
+      filtered.forEach(m => {
+        modelList.innerHTML += `
+          <div class="model-card">
+            <img src="${m.image}" alt="${m.name}" class="model-img mb-2" />
+            <div class="text-lg font-semibold">${m.name}</div>
+            <div>하중: ${m.load}kg</div>
+            <div>속도: ${m.speed}m/s</div>
+            <div>운행시간: ${m.time}h</div>
           </div>
-        </div>
-      `;
-    }
-
-    function renderCharts(model) {
-      const data = modelData[model];
-      const labels = Array.from({ length: 24 }, (_, i) => `${i + 1}월`);
-      const cumulativeSavings = labels.map((_, i) => data.monthlySavings * (i + 1));
-      const investment = Array(24).fill(data.cost);
-      const breakevenIndex = cumulativeSavings.findIndex(v => v >= data.cost);
-
-      if (breakevenChart) breakevenChart.destroy();
-      breakevenChart = new Chart(ctx1, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: "누적 절감액",
-              data: cumulativeSavings,
-              borderColor: "#22c55e",
-              backgroundColor: "#22c55e33",
-              fill: false,
-            },
-            {
-              label: "도입 비용",
-              data: investment,
-              borderColor: "#ef4444",
-              backgroundColor: "#ef444433",
-              fill: false,
-            }
-          ]
-        },
-        options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: ctx => `₩ ${ctx.raw.toLocaleString()}`
-              }
-            },
-            annotation: {
-              annotations: breakevenIndex >= 0 ? {
-                line: {
-                  type: 'line',
-                  scaleID: 'x',
-                  value: labels[breakevenIndex],
-                  borderColor: '#0ea5e9',
-                  borderWidth: 2,
-                  label: {
-                    content: '손익분기점',
-                    enabled: true,
-                    position: 'end'
-                  }
-                }
-              } : {}
-            }
-          },
-          scales: {
-            y: {
-              ticks: {
-                callback: v => `₩${v.toLocaleString()}`
-              }
-            }
-          }
-        }
-      });
-
-      if (monthlyChart) monthlyChart.destroy();
-      monthlyChart = new Chart(ctx2, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: "월별 절감액",
-            data: Array(24).fill(data.monthlySavings),
-            backgroundColor: "#3b82f6"
-          }]
-        },
-        options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: ctx => `₩ ${ctx.raw.toLocaleString()}`
-              }
-            }
-          },
-          scales: {
-            y: {
-              ticks: {
-                callback: v => `₩${v.toLocaleString()}`
-              }
-            }
-          }
-        }
+        `;
       });
     }
 
-    modelSelector.addEventListener("change", e => {
-      const selectedModel = e.target.value;
-      renderModelCard(selectedModel);
-      renderCharts(selectedModel);
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderModels(tab.dataset.category);
+      });
     });
 
-    // PDF 저장
-    document.getElementById("downloadPDF").addEventListener("click", async () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("AGV ROI 시뮬레이션 보고서", 20, 20);
-      doc.text(`모델: ${modelSelector.value}`, 20, 30);
-      doc.save("roi_result.pdf");
+    renderModels('저상형');
+
+    // ROI 차트 샘플 데이터
+    const roiCtx = document.getElementById('roiChart').getContext('2d');
+    const roiChart = new Chart(roiCtx, {
+      type: 'line',
+      data: {
+        labels: Array.from({ length: 24 }, (_, i) => `${i + 1}개월`),
+        datasets: [{
+          label: 'ROI 추이',
+          data: Array.from({ length: 24 }, (_, i) => (i + 1) * 500000 - 8000000),
+          borderColor: '#254597',
+          backgroundColor: 'rgba(37,69,151,0.1)',
+          pointBackgroundColor: '#254597',
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            ticks: {
+              callback: value => `${(value / 10000).toLocaleString()}만원`
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `ROI: ${(ctx.parsed.y / 10000).toFixed(0)}만원`
+            }
+          }
+        }
+      }
     });
 
-    // 다크모드 전환
-    document.getElementById("toggleTheme").addEventListener("click", () => {
-      document.body.classList.toggle("dark");
+    // 월간 투자 vs 인건비 손익 그래프
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({ length: 24 }, (_, i) => `${i + 1}월`),
+        datasets: [
+          {
+            label: '인건비 절감',
+            data: Array.from({ length: 24 }, (_, i) => 2000000 + Math.random() * 500000),
+            backgroundColor: '#79c9c7'
+          },
+          {
+            label: '투자비 회수',
+            data: Array.from({ length: 24 }, (_, i) => i * 300000),
+            backgroundColor: '#254597'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            ticks: {
+              stepSize: 500000,
+              callback: value => `${(value / 10000).toFixed(0)}만원`
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y / 10000).toFixed(0)}만원`
+            }
+          }
+        }
+      }
     });
-
-    // 초기 실행
-    renderModelCard(modelSelector.value);
-    renderCharts(modelSelector.value);
   </script>
 </body>
+
 </html>
