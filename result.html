@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>ROI 결과 대시보드</title>
+  <title>ROI 대시보드 결과</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -11,46 +11,56 @@
     body {
       background-color: #080b12;
       color: white;
-      font-family: sans-serif;
-      padding: 1rem;
+      font-family: 'Segoe UI', sans-serif;
     }
     .card {
       background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .dashboard-section {
-      max-width: 960px;
-      margin: 0 auto;
+    .highlight {
+      background-color: #ff6f61;
+      padding: 2px 6px;
+      border-radius: 4px;
     }
-    input[type='number'] {
-      color: black;
+    .label {
+      color: #79c9c7;
     }
   </style>
 </head>
-<body>
-  <div class="dashboard-section">
-    <h1 class="text-3xl font-bold mb-6 text-center">ROI 대시보드 결과</h1>
+<body class="p-4 md:p-8">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-4xl font-bold mb-4 text-center">📊 AGV/AMR ROI 대시보드</h1>
+    <p class="text-center mb-8 text-gray-300">AGV 수와 기간을 조절하여 손익분기점을 시뮬레이션 해보세요</p>
 
-    <div class="text-center mb-8">
-      <label class="block mb-2">AGV 수 (1~10대):</label>
-      <input id="agv-count" type="number" min="1" max="10" value="3" class="rounded px-4 py-2 w-32 text-center" onchange="updateCharts()">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="card p-4 rounded">
+        <label class="block mb-2">AGV 수 (1~10대)</label>
+        <input id="agv-count" type="number" min="1" max="10" value="3" class="w-full px-4 py-2 rounded text-black" onchange="updateCharts()">
+      </div>
+      <div class="card p-4 rounded">
+        <label class="block mb-2">통화 단위</label>
+        <select id="currency" class="w-full px-4 py-2 rounded text-black" onchange="updateCharts()">
+          <option value="원">KRW (원)</option>
+          <option value="$">USD ($)</option>
+        </select>
+      </div>
     </div>
 
-    <div id="dashboard-content" class="space-y-10">
-      <div class="card p-4 md:p-6 rounded-xl shadow">
-        <h2 class="text-lg md:text-xl font-semibold mb-4">도입시 누적 절감 비용 (24개월)</h2>
-        <canvas id="savingsChart" height="120"></canvas>
-      </div>
+    <div class="card p-6 rounded mb-6">
+      <h2 class="text-xl font-semibold mb-4">누적 절감액 (24개월)</h2>
+      <canvas id="savingsChart" height="120"></canvas>
+    </div>
 
-      <div class="card p-4 md:p-6 rounded-xl shadow">
-        <h2 class="text-lg md:text-xl font-semibold mb-4">월별 비교 (AGV,AMR vs 기존 방식)</h2>
-        <canvas id="compareChart" height="120"></canvas>
-      </div>
+    <div class="card p-6 rounded mb-6">
+      <h2 class="text-xl font-semibold mb-4">월별 운영비용 비교</h2>
+      <canvas id="compareChart" height="120"></canvas>
+      <p id="breakeven-label" class="mt-4 text-center text-sm text-gray-400"></p>
+    </div>
 
-      <div class="text-center">
-        <button onclick="downloadPDF()" class="mt-6 bg-[#79c9c7] text-[#080b12] px-6 py-3 rounded shadow hover:bg-[#63b2b0] transition">
-          PDF로 저장
-        </button>
-      </div>
+    <div class="text-center mt-6">
+      <button onclick="downloadPDF()" class="bg-[#79c9c7] text-[#080b12] px-6 py-3 rounded shadow hover:bg-[#63b2b0] transition">
+        PDF로 저장하기
+      </button>
     </div>
   </div>
 
@@ -65,19 +75,22 @@
       return { savings, withAGV, withoutAGV };
     }
 
+    function getCurrencySymbol() {
+      return document.getElementById('currency').value;
+    }
+
     function findBreakeven(withAGV, withoutAGV) {
       for (let i = 0; i < withAGV.length; i++) {
-        if (withAGV[i] < withoutAGV[i]) return i;
+        if (withAGV[i] <= withoutAGV[i]) return i;
       }
       return -1;
     }
 
     function createCharts() {
       const agvCount = parseInt(document.getElementById('agv-count').value);
+      const currency = getCurrencySymbol();
       const { savings, withAGV, withoutAGV } = generateData(agvCount);
       const breakevenIndex = findBreakeven(withAGV, withoutAGV);
-
-      const tooltipCallback = (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue} 원`;
 
       if (savingsChart) savingsChart.destroy();
       if (compareChart) compareChart.destroy();
@@ -97,7 +110,9 @@
         options: {
           plugins: {
             tooltip: {
-              callbacks: { label: tooltipCallback }
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${currency}`
+              }
             },
             legend: { labels: { color: 'white' } }
           },
@@ -107,22 +122,6 @@
           }
         }
       });
-
-      const breakevenPoint = breakevenIndex >= 0 ? {
-        id: 'breakeven-line',
-        beforeDraw(chart) {
-          const ctx = chart.ctx;
-          const x = chart.scales.x.getPixelForValue(breakevenIndex);
-          ctx.save();
-          ctx.strokeStyle = '#ff6f61';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x, chart.chartArea.top);
-          ctx.lineTo(x, chart.chartArea.bottom);
-          ctx.stroke();
-          ctx.restore();
-        }
-      } : {};
 
       compareChart = new Chart(document.getElementById('compareChart'), {
         type: 'line',
@@ -149,7 +148,9 @@
         options: {
           plugins: {
             tooltip: {
-              callbacks: { label: tooltipCallback }
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${currency}`
+              }
             },
             legend: { labels: { color: 'white' } }
           },
@@ -157,9 +158,13 @@
             x: { ticks: { color: 'white' } },
             y: { ticks: { color: 'white' } }
           }
-        },
-        plugins: [breakevenPoint]
+        }
       });
+
+      const label = document.getElementById('breakeven-label');
+      label.innerHTML = breakevenIndex >= 0
+        ? `💡 손익분기점은 <span class="highlight">${breakevenIndex + 1}월</span>입니다.`
+        : '❗ 손익분기점이 24개월 내에 도달하지 않습니다.';
     }
 
     function updateCharts() {
@@ -178,7 +183,6 @@
       });
     }
 
-    // 초기 로드 시 차트 생성
     window.onload = () => createCharts();
   </script>
 </body>
