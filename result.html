@@ -1,104 +1,109 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ROI 대시보드</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <title>AGV/AMR ROI 결과 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body.dark {
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #f7f8fa;
+      color: #080b12;
+    }
+    .dark-mode {
       background-color: #080b12;
-      color: #ffffff;
+      color: #f7f8fa;
     }
-    .dark .bg-white {
-      background-color: #1f2937;
+    .dark-mode .bg-white {
+      background-color: #1c1c1c;
     }
-    .dark .text-[#080b12] {
-      color: #ffffff;
+    .dark-mode .text-black {
+      color: #f7f8fa;
     }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-[#080b12] relative">
 
-  <!-- 다크모드 토글 -->
-  <button id="darkModeToggle" class="fixed top-4 right-4 bg-white border border-[#080b12] text-[#080b12] px-3 py-1 rounded-md text-sm hover:bg-[#080b12] hover:text-white transition">🌙 다크모드</button>
-
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6 text-center">AGV/AMR ROI 결과 대시보드</h1>
-
-    <!-- ROI 차트 -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-      <h2 class="text-xl font-semibold mb-4">손익분기점 분석 (24개월)</h2>
-      <canvas id="roiChart" height="200"></canvas>
-    </div>
-
-    <!-- 절감률 -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-      <h2 class="text-xl font-semibold mb-4">월별 절감률 (24개월)</h2>
-      <canvas id="savingChart" height="200"></canvas>
-    </div>
-
-    <!-- PDF 저장 버튼 -->
-    <div class="text-center mt-6">
-      <button id="savePdfBtn" class="bg-[#080b12] text-white px-6 py-3 rounded-md hover:bg-white hover:text-[#080b12] border border-[#080b12] transition">PDF 저장하기</button>
+<body class="min-h-screen">
+  <!-- 헤더 -->
+  <div class="flex justify-between items-center px-6 py-4 shadow bg-white dark-mode:bg-[#121212]">
+    <h1 class="text-xl font-bold">AGV/AMR ROI 결과 대시보드</h1>
+    <div class="flex gap-4">
+      <button onclick="toggleDarkMode()" class="border border-[#080b12] text-[#080b12] px-3 py-1 rounded hover:bg-[#080b12] hover:text-white transition">다크 모드 전환</button>
+      <button onclick="downloadPDF()" class="bg-[#080b12] text-white px-3 py-1 rounded hover:bg-white hover:text-[#080b12] border border-[#080b12] transition">PDF 저장</button>
     </div>
   </div>
 
+  <!-- 메인 섹션 -->
+  <main class="container mx-auto p-6">
+    <section class="bg-white p-6 rounded-lg shadow mb-10">
+      <h2 class="text-2xl font-semibold mb-4">손익분기점 분석 (24개월)</h2>
+      <canvas id="breakEvenChart" class="w-full max-w-4xl h-[400px] mx-auto"></canvas>
+    </section>
+
+    <section class="bg-white p-6 rounded-lg shadow mb-10">
+      <h2 class="text-2xl font-semibold mb-4">월간 투자 vs 인건비 절감 (24개월)</h2>
+      <canvas id="monthlyChart" class="w-full max-w-4xl h-[400px] mx-auto"></canvas>
+    </section>
+  </main>
+
   <script>
-    // 다크모드 토글
-    document.getElementById('darkModeToggle').addEventListener('click', () => {
-      document.body.classList.toggle('dark');
-    });
-
-    // 샘플 계산값 (예시)
-    const monthlyLaborCost = 1800000; // 기존 인건비 월별 (단위: 원)
-    const agvCost = 25000000; // AGV 도입 비용 (1대)
-    const monthlySavings = 800000; // 월 절감액
-
-    // 24개월 누적 계산
-    const months = Array.from({length: 24}, (_, i) => `${i+1}개월`);
-    let cumulativeHuman = [], cumulativeAgv = [], savingRate = [], breakevenMonth = null;
-
-    for (let i = 0; i < 24; i++) {
-      cumulativeHuman.push(monthlyLaborCost * (i+1));
-      cumulativeAgv.push(agvCost);
-      savingRate.push(Math.min(100, ((monthlyLaborCost * (i+1) - agvCost) / agvCost) * 100));
-      if (!breakevenMonth && cumulativeHuman[i] >= agvCost) breakevenMonth = i;
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
     }
 
-    const roiCtx = document.getElementById('roiChart');
-    new Chart(roiCtx, {
-      type: 'line',
+    function downloadPDF() {
+      import('jspdf').then(jsPDF => {
+        const doc = new jsPDF.jsPDF();
+        doc.text("AGV/AMR ROI 결과 대시보드", 10, 10);
+        doc.save("ROI_Result.pdf");
+      });
+    }
+
+    // 계산용 예시 데이터
+    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}개월`);
+    const agvCost = 50000000; // AGV 초기 투자비
+    const monthlySaving = 3000000; // 매월 절감 예상액
+
+    const cumulativeSaving = months.map((_, i) => monthlySaving * (i + 1));
+
+    const breakEvenIndex = cumulativeSaving.findIndex(v => v >= agvCost);
+
+    const ctx1 = document.getElementById("breakEvenChart").getContext("2d");
+    const breakEvenChart = new Chart(ctx1, {
+      type: "line",
       data: {
         labels: months,
-        datasets: [
-          {
-            label: '누적 인건비',
-            data: cumulativeHuman,
-            borderColor: '#2563eb',
-            backgroundColor: 'transparent'
-          },
-          {
-            label: 'AGV 도입 비용',
-            data: cumulativeAgv,
-            borderColor: '#f43f5e',
-            borderDash: [5, 5],
-            backgroundColor: 'transparent'
-          }
-        ]
+        datasets: [{
+          label: "누적 절감 비용 (원)",
+          data: cumulativeSaving,
+          borderColor: "#254597",
+          fill: false,
+          tension: 0.3
+        }]
       },
       options: {
+        responsive: true,
         plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.parsed.y.toLocaleString()} 원`;
+              }
+            }
+          },
           annotation: {
-            annotations: breakevenMonth !== null ? {
+            annotations: breakEvenIndex !== -1 ? {
               line1: {
                 type: 'line',
-                xMin: breakevenMonth,
-                xMax: breakevenMonth,
-                borderColor: 'green',
+                xMin: breakEvenIndex,
+                xMax: breakEvenIndex,
+                borderColor: 'red',
                 borderWidth: 2,
                 label: {
                   content: '손익분기점',
@@ -107,54 +112,53 @@
                 }
               }
             } : {}
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()}원`
-            }
           }
         },
-        responsive: true,
-        maintainAspectRatio: false
-      }
-    });
-
-    new Chart(document.getElementById('savingChart'), {
-      type: 'bar',
-      data: {
-        labels: months,
-        datasets: [{
-          label: '누적 절감률(%)',
-          data: savingRate,
-          backgroundColor: '#16a34a'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`
-            }
+        scales: {
+          y: {
+            beginAtZero: true
           }
         }
       }
     });
 
-    // PDF 저장 기능
-    document.getElementById('savePdfBtn').addEventListener('click', async () => {
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF();
-      const chartArea = document.body; // 전체 영역 PDF 저장
-      const canvas = await html2canvas(chartArea);
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save('roi_dashboard.pdf');
+    const ctx2 = document.getElementById("monthlyChart").getContext("2d");
+    const monthlyChart = new Chart(ctx2, {
+      type: "bar",
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: "월간 절감액 (원)",
+            data: Array(24).fill(monthlySaving),
+            backgroundColor: "#254597"
+          },
+          {
+            label: "AGV 투자비용 (월평균)",
+            data: Array(24).fill(agvCost / 24),
+            backgroundColor: "#888"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.parsed.y.toLocaleString()} 원`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
     });
   </script>
 </body>
+
 </html>
