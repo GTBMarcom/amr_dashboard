@@ -1,124 +1,220 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AGV ROI 시뮬레이션</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGV ROI 시뮬레이션 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .scrollbar-hide::-webkit-scrollbar {
-      display: none;
+    body.dark {
+      background-color: #080b12;
+      color: #ffffff;
     }
-    .scrollbar-hide {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    .model-image {
+      height: 96px;
+      object-fit: contain;
     }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
-  <div class="flex h-screen overflow-hidden">
+<body class="transition-colors">
+  <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <div class="w-80 bg-white shadow-lg overflow-y-auto scrollbar-hide">
-      <div class="p-4 border-b">
-        <h2 class="text-xl font-bold mb-2">DASHBOARD HOME</h2>
-        <button onclick="location.href='https://gtbmarcom.github.io/amr_dashboard/'" class="text-blue-600 hover:underline text-sm">처음으로</button>
+    <aside class="w-64 bg-white border-r dark:bg-[#121212] dark:border-gray-700 p-4 overflow-y-auto">
+      <h2 class="text-xl font-bold mb-4">모델 선택</h2>
+      <select id="modelSelector" class="w-full p-2 border rounded mb-4 text-[#080b12]">
+        <option value="M6-300N">M6-300N</option>
+        <option value="Z50-SF">Z50-SF</option>
+        <option value="YAF10">YAF10</option>
+        <!-- 필요시 더 추가 -->
+      </select>
+      <div id="modelList" class="space-y-4">
+        <!-- 모델 카드 동적 삽입 -->
       </div>
-      <div class="p-4">
-        <select id="categorySelect" onchange="renderModelList()" class="w-full p-2 border rounded mb-4">
-          <option value="">전체 보기</option>
-          <option value="저상형">저상형</option>
-          <option value="분류형">분류형</option>
-          <option value="운반형">운반형</option>
-          <option value="지게형">지게형</option>
-        </select>
-        <div id="modelList" class="space-y-4"></div>
-      </div>
-    </div>
+    </aside>
 
     <!-- Main Content -->
-    <div class="flex-1 p-6 overflow-y-auto">
-      <h1 class="text-2xl font-bold mb-6">AGV/AMR ROI 결과 대시보드</h1>
-      <div>
-        <canvas id="roiChart" class="bg-white p-4 rounded shadow-md" height="300"></canvas>
+    <main class="flex-1 p-6 bg-[#f7f8fa] dark:bg-[#0c0f16]">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">ROI 시뮬레이션</h1>
+        <button id="toggleTheme" class="px-4 py-2 border rounded">🌗 테마 전환</button>
       </div>
-    </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-[#1c1f26] p-6 rounded shadow">
+          <h2 class="text-lg font-semibold mb-4">손익분기점 분석 (24개월)</h2>
+          <canvas id="breakevenChart" height="250"></canvas>
+        </div>
+
+        <div class="bg-white dark:bg-[#1c1f26] p-6 rounded shadow">
+          <h2 class="text-lg font-semibold mb-4">월별 투자 대비 절감 효과</h2>
+          <canvas id="monthlyChart" height="250"></canvas>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button id="downloadPDF" class="px-6 py-2 bg-[#080b12] text-white rounded shadow hover:bg-[#1a1f2c]">PDF 저장하기</button>
+      </div>
+    </main>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const models = [
-      { name: "M6-300N", img: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", type: "저상형" },
-      { name: "M6-600", img: "http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d", type: "저상형" },
-      { name: "M6-600", img: "http://gtbkorea.com/board/download/21b35da19c4cdbec537d7b752d16e351", type: "저상형" },
-      { name: "T6-1200/1500", img: "http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904", type: "저상형" },
-      { name: "YAF10", img: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50", type: "분류형" },
-      { name: "YAH10", img: "http://gtbkorea.com/board/download/624fbdccc2c937f8e29edc04bf0a7584", type: "분류형" },
-      { name: "Z50-SF", img: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", type: "운반형" },
-      { name: "Z50-S", img: "http://gtbkorea.com/board/download/0ab50609721b1de4baee87e07cb5905d", type: "운반형" },
-      { name: "F50A", img: "http://gtbkorea.com/board/download/b0923cce7cdfaa31395dcd5ea71bd6cc", type: "운반형" },
-      { name: "F152/F152-XL", img: "http://gtbkorea.com/board/download/16e8be0a9203575f8c99231c17a4066f", type: "운반형" },
-      { name: "ZS-H150", img: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", type: "지게형" },
-      { name: "ZS-H120", img: "http://gtbkorea.com/board/download/623c0699c75a3799df83991be50d1fdd", type: "지게형" },
-      { name: "ZS-L2000", img: "http://gtbkorea.com/board/download/1f3f9da6d6129fe410548eef36b370c1", type: "지게형" },
-      { name: "ZS 고객요청용", img: "http://gtbkorea.com/board/download/1fe5784d235d5426ff8d75ad98f081c1", type: "지게형" },
-      { name: "YAG10", img: "http://gtbkorea.com/board/download/8f55e3677844a1d2983db42f19d42567", type: "지게형" },
-      { name: "CONVEYOR", img: "http://gtbkorea.com/board/download/6c60053620b9f87b62afed043953fa8a", type: "지게형" },
-      { name: "YAA10", img: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", type: "지게형" },
-      { name: "YAB10", img: "http://gtbkorea.com/board/download/c7c166dedf97859f798f5e0f1cf271b2", type: "지게형" },
-      { name: "YAB16", img: "http://gtbkorea.com/board/download/5a240a7b5b1cdaa612d8d26fac031ff4", type: "지게형" },
-      { name: "YAP10", img: "http://gtbkorea.com/board/download/a9a30860335be0d79f13c6cd89a12510", type: "지게형" },
-      { name: "YAF30", img: "http://gtbkorea.com/board/download/aae163cad4b249d7bfe9e7a64a855a97", type: "지게형" },
-      { name: "YAP30-10", img: "http://gtbkorea.com/board/download/5ec58fb27b7a282601214eadeda73d86", type: "지게형" },
-      { name: "YAG30", img: "http://gtbkorea.com/board/download/441491fb716d3a7c0fc3618d051eb2d0", type: "지게형" },
-      { name: "YAA35", img: "http://gtbkorea.com/board/download/c8ce53e70635340519eb46a62b984639", type: "지게형" },
-      { name: "YAB35", img: "http://gtbkorea.com/board/download/53ede872548fcb0bca9e52c560a09ef0", type: "지게형" }
-    ];
+    const modelData = {
+      "M6-300N": {
+        image: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737",
+        cost: 15000000,
+        monthlySavings: 900000,
+      },
+      "Z50-SF": {
+        image: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8",
+        cost: 18000000,
+        monthlySavings: 1200000,
+      },
+      "YAF10": {
+        image: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50",
+        cost: 16000000,
+        monthlySavings: 1000000,
+      },
+    };
 
-    function renderModelList() {
-      const list = document.getElementById("modelList");
-      const selected = document.getElementById("categorySelect").value;
-      list.innerHTML = "";
-      const filtered = selected ? models.filter(m => m.type === selected) : models;
+    const modelSelector = document.getElementById("modelSelector");
+    const modelList = document.getElementById("modelList");
+    const ctx1 = document.getElementById("breakevenChart").getContext("2d");
+    const ctx2 = document.getElementById("monthlyChart").getContext("2d");
 
-      filtered.forEach(model => {
-        const item = document.createElement("div");
-        item.className = "flex items-center space-x-4 p-2 bg-gray-50 hover:bg-gray-100 rounded cursor-pointer";
-        item.innerHTML = `
-          <img src="${model.img}" alt="${model.name}" class="w-16 h-16 object-contain rounded border" />
+    let breakevenChart, monthlyChart;
+
+    function renderModelCard(model) {
+      const data = modelData[model];
+      modelList.innerHTML = `
+        <div class="flex gap-4 items-center bg-gray-100 dark:bg-[#2a2f3a] p-4 rounded">
+          <img src="${data.image}" class="model-image w-32" alt="${model}" />
           <div>
-            <p class="font-semibold">${model.name}</p>
-            <p class="text-sm text-gray-500">${model.type}</p>
+            <h3 class="text-xl font-bold">${model}</h3>
+            <p>도입 비용: ${data.cost.toLocaleString()}원</p>
+            <p>월 절감액: ${data.monthlySavings.toLocaleString()}원</p>
           </div>
-        `;
-        list.appendChild(item);
-      });
+        </div>
+      `;
     }
 
-    // ROI 예제 차트
-    window.onload = () => {
-      renderModelList();
-      const ctx = document.getElementById('roiChart').getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
+    function renderCharts(model) {
+      const data = modelData[model];
+      const labels = Array.from({ length: 24 }, (_, i) => `${i + 1}월`);
+      const cumulativeSavings = labels.map((_, i) => data.monthlySavings * (i + 1));
+      const investment = Array(24).fill(data.cost);
+      const breakevenIndex = cumulativeSavings.findIndex(v => v >= data.cost);
+
+      if (breakevenChart) breakevenChart.destroy();
+      breakevenChart = new Chart(ctx1, {
+        type: "line",
         data: {
-          labels: Array.from({ length: 24 }, (_, i) => `${i + 1}개월`),
-          datasets: [{
-            label: '누적 절감 비용',
-            data: Array.from({ length: 24 }, (_, i) => (i + 1) * 3000000),
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            tension: 0.3
-          }]
+          labels,
+          datasets: [
+            {
+              label: "누적 절감액",
+              data: cumulativeSavings,
+              borderColor: "#22c55e",
+              backgroundColor: "#22c55e33",
+              fill: false,
+            },
+            {
+              label: "도입 비용",
+              data: investment,
+              borderColor: "#ef4444",
+              backgroundColor: "#ef444433",
+              fill: false,
+            }
+          ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => `₩ ${ctx.raw.toLocaleString()}`
+              }
+            },
+            annotation: {
+              annotations: breakevenIndex >= 0 ? {
+                line: {
+                  type: 'line',
+                  scaleID: 'x',
+                  value: labels[breakevenIndex],
+                  borderColor: '#0ea5e9',
+                  borderWidth: 2,
+                  label: {
+                    content: '손익분기점',
+                    enabled: true,
+                    position: 'end'
+                  }
+                }
+              } : {}
+            }
+          },
           scales: {
-            y: { beginAtZero: true }
+            y: {
+              ticks: {
+                callback: v => `₩${v.toLocaleString()}`
+              }
+            }
           }
         }
       });
-    };
+
+      if (monthlyChart) monthlyChart.destroy();
+      monthlyChart = new Chart(ctx2, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "월별 절감액",
+            data: Array(24).fill(data.monthlySavings),
+            backgroundColor: "#3b82f6"
+          }]
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => `₩ ${ctx.raw.toLocaleString()}`
+              }
+            }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback: v => `₩${v.toLocaleString()}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    modelSelector.addEventListener("change", e => {
+      const selectedModel = e.target.value;
+      renderModelCard(selectedModel);
+      renderCharts(selectedModel);
+    });
+
+    // PDF 저장
+    document.getElementById("downloadPDF").addEventListener("click", async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("AGV ROI 시뮬레이션 보고서", 20, 20);
+      doc.text(`모델: ${modelSelector.value}`, 20, 30);
+      doc.save("roi_result.pdf");
+    });
+
+    // 다크모드 전환
+    document.getElementById("toggleTheme").addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+    });
+
+    // 초기 실행
+    renderModelCard(modelSelector.value);
+    renderCharts(modelSelector.value);
   </script>
 </body>
 </html>
