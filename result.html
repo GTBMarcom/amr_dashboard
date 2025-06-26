@@ -1,164 +1,124 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AGV/AMR ROI 결과 대시보드</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AGV ROI 시뮬레이션</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Noto Sans KR', sans-serif;
-      background-color: #f7f8fa;
-      color: #080b12;
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
     }
-    .dark-mode {
-      background-color: #080b12;
-      color: #f7f8fa;
-    }
-    .dark-mode .bg-white {
-      background-color: #1c1c1c;
-    }
-    .dark-mode .text-black {
-      color: #f7f8fa;
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 </head>
+<body class="bg-gray-100 text-gray-900">
+  <div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <div class="w-80 bg-white shadow-lg overflow-y-auto scrollbar-hide">
+      <div class="p-4 border-b">
+        <h2 class="text-xl font-bold mb-2">DASHBOARD HOME</h2>
+        <button onclick="location.href='https://gtbmarcom.github.io/amr_dashboard/'" class="text-blue-600 hover:underline text-sm">처음으로</button>
+      </div>
+      <div class="p-4">
+        <select id="categorySelect" onchange="renderModelList()" class="w-full p-2 border rounded mb-4">
+          <option value="">전체 보기</option>
+          <option value="저상형">저상형</option>
+          <option value="분류형">분류형</option>
+          <option value="운반형">운반형</option>
+          <option value="지게형">지게형</option>
+        </select>
+        <div id="modelList" class="space-y-4"></div>
+      </div>
+    </div>
 
-<body class="min-h-screen">
-  <!-- 헤더 -->
-  <div class="flex justify-between items-center px-6 py-4 shadow bg-white dark-mode:bg-[#121212]">
-    <h1 class="text-xl font-bold">AGV/AMR ROI 결과 대시보드</h1>
-    <div class="flex gap-4">
-      <button onclick="toggleDarkMode()" class="border border-[#080b12] text-[#080b12] px-3 py-1 rounded hover:bg-[#080b12] hover:text-white transition">다크 모드 전환</button>
-      <button onclick="downloadPDF()" class="bg-[#080b12] text-white px-3 py-1 rounded hover:bg-white hover:text-[#080b12] border border-[#080b12] transition">PDF 저장</button>
+    <!-- Main Content -->
+    <div class="flex-1 p-6 overflow-y-auto">
+      <h1 class="text-2xl font-bold mb-6">AGV/AMR ROI 결과 대시보드</h1>
+      <div>
+        <canvas id="roiChart" class="bg-white p-4 rounded shadow-md" height="300"></canvas>
+      </div>
     </div>
   </div>
 
-  <!-- 메인 섹션 -->
-  <main class="container mx-auto p-6">
-    <section class="bg-white p-6 rounded-lg shadow mb-10">
-      <h2 class="text-2xl font-semibold mb-4">손익분기점 분석 (24개월)</h2>
-      <canvas id="breakEvenChart" class="w-full max-w-4xl h-[400px] mx-auto"></canvas>
-    </section>
-
-    <section class="bg-white p-6 rounded-lg shadow mb-10">
-      <h2 class="text-2xl font-semibold mb-4">월간 투자 vs 인건비 절감 (24개월)</h2>
-      <canvas id="monthlyChart" class="w-full max-w-4xl h-[400px] mx-auto"></canvas>
-    </section>
-  </main>
-
   <script>
-    function toggleDarkMode() {
-      document.body.classList.toggle("dark-mode");
-    }
+    const models = [
+      { name: "M6-300N", img: "http://gtbkorea.com/board/download/424b70200f0fdedb814795970d94d737", type: "저상형" },
+      { name: "M6-600", img: "http://gtbkorea.com/board/download/f707273357c45ecf554f773fcc29b27d", type: "저상형" },
+      { name: "M6-600", img: "http://gtbkorea.com/board/download/21b35da19c4cdbec537d7b752d16e351", type: "저상형" },
+      { name: "T6-1200/1500", img: "http://gtbkorea.com/board/download/e6e56ad00518e93b696b0cd0a1293904", type: "저상형" },
+      { name: "YAF10", img: "http://gtbkorea.com/board/download/724be54bff8b685721fad714c04e8f50", type: "분류형" },
+      { name: "YAH10", img: "http://gtbkorea.com/board/download/624fbdccc2c937f8e29edc04bf0a7584", type: "분류형" },
+      { name: "Z50-SF", img: "http://gtbkorea.com/board/download/2340dd9e5e0ae97f88b4c2e90dcb2cf8", type: "운반형" },
+      { name: "Z50-S", img: "http://gtbkorea.com/board/download/0ab50609721b1de4baee87e07cb5905d", type: "운반형" },
+      { name: "F50A", img: "http://gtbkorea.com/board/download/b0923cce7cdfaa31395dcd5ea71bd6cc", type: "운반형" },
+      { name: "F152/F152-XL", img: "http://gtbkorea.com/board/download/16e8be0a9203575f8c99231c17a4066f", type: "운반형" },
+      { name: "ZS-H150", img: "http://gtbkorea.com/board/download/080f97a986659ce4bc5f1cd0a12d09eb", type: "지게형" },
+      { name: "ZS-H120", img: "http://gtbkorea.com/board/download/623c0699c75a3799df83991be50d1fdd", type: "지게형" },
+      { name: "ZS-L2000", img: "http://gtbkorea.com/board/download/1f3f9da6d6129fe410548eef36b370c1", type: "지게형" },
+      { name: "ZS 고객요청용", img: "http://gtbkorea.com/board/download/1fe5784d235d5426ff8d75ad98f081c1", type: "지게형" },
+      { name: "YAG10", img: "http://gtbkorea.com/board/download/8f55e3677844a1d2983db42f19d42567", type: "지게형" },
+      { name: "CONVEYOR", img: "http://gtbkorea.com/board/download/6c60053620b9f87b62afed043953fa8a", type: "지게형" },
+      { name: "YAA10", img: "http://gtbkorea.com/board/download/125d1ba1e7c70688aa4d162e7f5d7020", type: "지게형" },
+      { name: "YAB10", img: "http://gtbkorea.com/board/download/c7c166dedf97859f798f5e0f1cf271b2", type: "지게형" },
+      { name: "YAB16", img: "http://gtbkorea.com/board/download/5a240a7b5b1cdaa612d8d26fac031ff4", type: "지게형" },
+      { name: "YAP10", img: "http://gtbkorea.com/board/download/a9a30860335be0d79f13c6cd89a12510", type: "지게형" },
+      { name: "YAF30", img: "http://gtbkorea.com/board/download/aae163cad4b249d7bfe9e7a64a855a97", type: "지게형" },
+      { name: "YAP30-10", img: "http://gtbkorea.com/board/download/5ec58fb27b7a282601214eadeda73d86", type: "지게형" },
+      { name: "YAG30", img: "http://gtbkorea.com/board/download/441491fb716d3a7c0fc3618d051eb2d0", type: "지게형" },
+      { name: "YAA35", img: "http://gtbkorea.com/board/download/c8ce53e70635340519eb46a62b984639", type: "지게형" },
+      { name: "YAB35", img: "http://gtbkorea.com/board/download/53ede872548fcb0bca9e52c560a09ef0", type: "지게형" }
+    ];
 
-    function downloadPDF() {
-      import('jspdf').then(jsPDF => {
-        const doc = new jsPDF.jsPDF();
-        doc.text("AGV/AMR ROI 결과 대시보드", 10, 10);
-        doc.save("ROI_Result.pdf");
+    function renderModelList() {
+      const list = document.getElementById("modelList");
+      const selected = document.getElementById("categorySelect").value;
+      list.innerHTML = "";
+      const filtered = selected ? models.filter(m => m.type === selected) : models;
+
+      filtered.forEach(model => {
+        const item = document.createElement("div");
+        item.className = "flex items-center space-x-4 p-2 bg-gray-50 hover:bg-gray-100 rounded cursor-pointer";
+        item.innerHTML = `
+          <img src="${model.img}" alt="${model.name}" class="w-16 h-16 object-contain rounded border" />
+          <div>
+            <p class="font-semibold">${model.name}</p>
+            <p class="text-sm text-gray-500">${model.type}</p>
+          </div>
+        `;
+        list.appendChild(item);
       });
     }
 
-    // 계산용 예시 데이터
-    const months = Array.from({ length: 24 }, (_, i) => `${i + 1}개월`);
-    const agvCost = 50000000; // AGV 초기 투자비
-    const monthlySaving = 3000000; // 매월 절감 예상액
-
-    const cumulativeSaving = months.map((_, i) => monthlySaving * (i + 1));
-
-    const breakEvenIndex = cumulativeSaving.findIndex(v => v >= agvCost);
-
-    const ctx1 = document.getElementById("breakEvenChart").getContext("2d");
-    const breakEvenChart = new Chart(ctx1, {
-      type: "line",
-      data: {
-        labels: months,
-        datasets: [{
-          label: "누적 절감 비용 (원)",
-          data: cumulativeSaving,
-          borderColor: "#254597",
-          fill: false,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                return `${context.parsed.y.toLocaleString()} 원`;
-              }
-            }
-          },
-          annotation: {
-            annotations: breakEvenIndex !== -1 ? {
-              line1: {
-                type: 'line',
-                xMin: breakEvenIndex,
-                xMax: breakEvenIndex,
-                borderColor: 'red',
-                borderWidth: 2,
-                label: {
-                  content: '손익분기점',
-                  enabled: true,
-                  position: 'start'
-                }
-              }
-            } : {}
-          }
+    // ROI 예제 차트
+    window.onload = () => {
+      renderModelList();
+      const ctx = document.getElementById('roiChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: 24 }, (_, i) => `${i + 1}개월`),
+          datasets: [{
+            label: '누적 절감 비용',
+            data: Array.from({ length: 24 }, (_, i) => (i + 1) * 3000000),
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            tension: 0.3
+          }]
         },
-        scales: {
-          y: {
-            beginAtZero: true
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true }
           }
         }
-      }
-    });
-
-    const ctx2 = document.getElementById("monthlyChart").getContext("2d");
-    const monthlyChart = new Chart(ctx2, {
-      type: "bar",
-      data: {
-        labels: months,
-        datasets: [
-          {
-            label: "월간 절감액 (원)",
-            data: Array(24).fill(monthlySaving),
-            backgroundColor: "#254597"
-          },
-          {
-            label: "AGV 투자비용 (월평균)",
-            data: Array(24).fill(agvCost / 24),
-            backgroundColor: "#888"
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                return `${context.parsed.y.toLocaleString()} 원`;
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true
-          }
-        }
-      }
-    });
+      });
+    };
   </script>
 </body>
-
 </html>
